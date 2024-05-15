@@ -7,9 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from _backbones import create_backbone
-from _backbones import C3D_backbone
-from _TEO import Encoder
+from models.backbones import create_backbone
+from models.backbones import C3D_backbone
 from receptive_field import compute_proto_layer_rf_info_v2
 from utils import last_conv_channel, last_lstm_channel
 from tools.datasets.TITAN import NUM_CLS_ATOMIC, NUM_CLS_COMPLEX, NUM_CLS_COMMUNICATIVE, NUM_CLS_TRANSPORTING, NUM_CLS_AGE
@@ -403,119 +402,6 @@ class BackBones(nn.Module):
         
         return logits
 
-class TEO(nn.Module):
-    def __init__(self, num_layers, d_model, d_input, num_heads, dff, maximum_position_encoding, rate=0.1, device='cpu',
-                num_classes=2,
-                 use_atomic=0, 
-                 use_complex=0, 
-                 use_communicative=0, 
-                 use_transporting=0, 
-                 use_age=0,
-                 use_cross=1,
-                 trainable_weights=0,
-                 m_task_weights=0,
-                 init_class_weights=None,
-                 ):
-        super().__init__()
-        self.num_classes = num_classes
-        self.use_atomic = use_atomic
-        self.use_complex = use_complex
-        self.use_communicative = use_communicative
-        self.use_transporting = use_transporting
-        self.use_age = use_age
-        self.use_cross = use_cross
-        self.trainable_weights = trainable_weights
-        self.init_class_weights = init_class_weights
-        self.m_task_weights = m_task_weights
-
-        self.encoder = Encoder(num_layers, d_model, d_input, num_heads, dff,
-                               maximum_position_encoding, rate=0.1, device=device)
-        feat_channel = 4
-        self.decoding = nn.Linear(d_model, feat_channel)
-
-        last_in_dim = feat_channel
-        if self.use_atomic:
-            self.atomic_layer = nn.Linear(feat_channel, NUM_CLS_ATOMIC, bias=False)
-            if self.use_atomic == 2:
-                last_in_dim += NUM_CLS_ATOMIC
-        if self.use_complex:
-            self.complex_layer = nn.Linear(feat_channel, NUM_CLS_COMPLEX, bias=False)
-            if self.use_complex == 2:
-                last_in_dim += NUM_CLS_COMPLEX
-        if self.use_communicative:
-            self.communicative_layer = nn.Linear(feat_channel, NUM_CLS_COMMUNICATIVE, bias=False)
-            if self.use_communicative == 2:
-                last_in_dim += NUM_CLS_COMMUNICATIVE
-        if self.use_transporting:
-            self.transporting_layer = nn.Linear(feat_channel, NUM_CLS_TRANSPORTING, bias=False)
-            if self.use_transporting == 2:
-                last_in_dim += NUM_CLS_TRANSPORTING
-        if self.use_age:
-            self.age_layer = nn.Linear(feat_channel, NUM_CLS_AGE)
-            if self.use_age == 2:
-                last_in_dim += NUM_CLS_AGE
-        self.last_layer = nn.Linear(last_in_dim, self.num_classes)
-        
-        # self.fc = nn.Linear(4, 2)
-        self.activation = nn.Sigmoid()
-
-        # create task weights
-        self.logs2 = nn.Parameter(torch.rand(()), requires_grad=True)
-        if self.use_atomic:
-            self.atomic_logs2 = nn.Parameter(torch.rand(()), requires_grad=True)
-        if self.use_complex:
-            self.complex_logs2 = nn.Parameter(torch.rand(()), requires_grad=True)
-        if self.use_communicative:
-            self.communicative_logs2 = nn.Parameter(torch.rand(()), requires_grad=True)
-        if self.use_transporting:
-            self.transporting_logs2 = nn.Parameter(torch.rand(()), requires_grad=True)
-        if self.use_age:
-            self.age_logs2 = nn.Parameter(torch.rand(()), requires_grad=True)
-
-    def forward(self, x, mask = None):
-        x = x['traj']  # B, obs len, 4
-        # print('x shape', x.size())
-        x = self.encoder(x, mask)
-        
-        x = torch.mean(x, dim=1)
-        
-        x = self.decoding(x)
-        # x = self.dense(x)
-        # x = self.activation(x)
-
-        _logits = [x]
-        logits = {}
-        if self.use_atomic:
-            atomic_logits = self.atomic_layer(x)
-            logits['atomic'] = atomic_logits
-            if self.use_atomic == 2:
-                _logits.append(atomic_logits)
-        if self.use_complex:
-            complex_logits = self.complex_layer(x)
-            logits['complex'] = complex_logits
-            if self.use_complex == 2:
-                _logits.append(complex_logits)
-        if self.use_communicative:
-            communicative_logits = self.communicative_layer(x)
-            logits['communicative'] = communicative_logits
-            if self.use_communicative == 2:
-                _logits.append(communicative_logits)
-        if self.use_transporting:
-            transporting_logits = self.transporting_layer(x)
-            logits['transporting'] = transporting_logits
-            if self.use_transporting == 2:
-                _logits.append(transporting_logits)
-        if self.use_age:
-            age_logits = self.age_layer(x)
-            logits['age'] = age_logits
-            if self.use_age == 2:
-                _logits.append(age_logits)
-        if self.use_cross:
-            final_logits = self.last_layer(torch.concat(_logits, dim=1))
-            # final_logits = self.activation(final_logits)
-            logits['final'] = final_logits
-        
-        return logits
 
 if __name__ == '__main__':
     model = PCPA()

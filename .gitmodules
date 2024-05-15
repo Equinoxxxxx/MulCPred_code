@@ -1,3 +1,6 @@
 [submodule "yolo_tracking"]
 	path = yolo_tracking
 	url = https://github.com/mikel-brostrom/yolo_tracking.git
+[submodule "simpleHRNet"]
+	path = simpleHRNet
+	url = https://github.com/Equinoxxxxx/simpleHRNet.git

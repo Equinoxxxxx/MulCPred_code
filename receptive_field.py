@@ -162,7 +162,7 @@ def compute_proto_layer_rf_info_v2(input_size, layer_filter_sizes, layer_strides
     return proto_layer_rf_info  # [n, j, r, start]
 
 if __name__ == '__main__':
-    from _backbones import SkeletonConv2D, record_conv2d_info, record_sp_conv2d_info_w, record_sp_conv2d_info_h
+    from models.backbones import SkeletonConv2D, record_conv2d_info, record_sp_conv2d_info_w, record_sp_conv2d_info_h
     from _proto_model import SkeletonPNet
 
     backbone = SkeletonConv2D()

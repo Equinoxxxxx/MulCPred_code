@@ -9,9 +9,8 @@ from torchsummary import summary
 
 from copy import deepcopy
 
-import _R3D
-import _I3D
-import VGG
+import models.R3D as R3D
+import models.I3D as I3D
 from _mmbackbones2 import create_mm_backbones
 
 pretrained_path = '../work_dirs/models/c3d-pretrained.pth'
@@ -607,7 +606,7 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
         backbone = C3D_full(last_dim=last_dim, pretrained=True)
     elif backbone_name == 'R3D18':  # 3, 16, 224, 224 -> 512, 1, 7, 7
         pretrained_path = '../work_dirs/models/r3d18_KM_200ep.pth'
-        backbone = _R3D.generate_model(18)
+        backbone = R3D.generate_model(18)
         pretrained = torch.load(pretrained_path, map_location='cpu')
         p_dict = pretrained['state_dict']  # keys必须完全一致
         for name in list(p_dict.keys()):
@@ -615,14 +614,14 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
                 p_dict.pop(name)
         backbone.load_state_dict(p_dict)
     elif backbone_name == 'R3D18_clean':
-        backbone = _R3D.generate_model(18)
+        backbone = R3D.generate_model(18)
     # elif backbone_name == 'R3D34':
     #     backbone = _R3D.generate_model(34, pretrained=True)
     # elif backbone_name == 'R3D34_new':
     #     backbone = _R3D.generate_model(34, t_downsample=False)
     elif backbone_name == 'R3D50':  # 3, 16, 224, 224 -> 2048 1 7 7
         pretrained_path = '../work_dirs/models/r3d50_KMS_200ep.pth'
-        backbone = _R3D.generate_model(50)
+        backbone = R3D.generate_model(50)
         pretrained = torch.load(pretrained_path, map_location='cpu')
         p_dict = pretrained['state_dict']  # keys必须完全一致
         for name in list(p_dict.keys()):
@@ -631,7 +630,7 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
         backbone.load_state_dict(p_dict)
     elif backbone_name == 'R3D50_no_max':  # 3, 16, 224, 224 -> 2048 1 7 7
         pretrained_path = '../work_dirs/models/r3d50_KMS_200ep.pth'
-        backbone = _R3D.generate_model(50, no_max_pool=True)
+        backbone = R3D.generate_model(50, no_max_pool=True)
         pretrained = torch.load(pretrained_path, map_location='cpu')
         p_dict = pretrained['state_dict']  # keys必须完全一致
         for name in list(p_dict.keys()):
@@ -639,10 +638,10 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
                 p_dict.pop(name)
         backbone.load_state_dict(p_dict)
     elif backbone_name == 'R3D50_clean':
-        backbone = _R3D.generate_model(50, pretrained=False)
+        backbone = R3D.generate_model(50, pretrained=False)
     elif backbone_name == 'R3D50_new':
         pretrained_path = '../work_dirs/models/r3d50_KMS_200ep.pth'
-        backbone = _R3D.generate_model(50, t_downsample=False)
+        backbone = R3D.generate_model(50, t_downsample=False)
         pretrained = torch.load(pretrained_path, 
                                 map_location='cpu')
         p_dict = pretrained['state_dict']  # keys必须完全一致
@@ -651,21 +650,19 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
                 p_dict.pop(name)
         backbone.load_state_dict(p_dict)
     elif backbone_name == 'I3D':
-        backbone = _I3D.I3D_backbone()
+        backbone = I3D.I3D_backbone()
         p_dict = torch.load('/home/y_feng/workspace6/work/ProtoPNet/work_dirs/models/i3d_model_rgb.pth')
         p_dict.pop('conv3d_0c_1x1.conv3d.weight')
         p_dict.pop('conv3d_0c_1x1.conv3d.bias')
         backbone.load_state_dict(p_dict)
     elif backbone_name == 'I3D_clean':
-        backbone = _I3D.I3D_backbone()
+        backbone = I3D.I3D_backbone()
     elif backbone_name == 'SK':
         backbone = SkeletonConv2D()
     elif backbone_name == 'segC3D':
         backbone = SegC3D()
     elif backbone_name == 'segC2D':
         backbone = SegC2D()
-    elif backbone_name == 'vgg16':
-        backbone = VGG.vgg16_backbone(pretrained=True)
     elif backbone_name == 'cnn_lstm':
         backbone = CNN_RNNEncoder(h_dim=lstm_h_dim)
     elif backbone_name == 'lstm':

@@ -24,7 +24,7 @@ from tools.datasets.TITAN import LABEL2DICT, NUM_CLS_ATOMIC, \
     NUM_CLS_COMPLEX, NUM_CLS_COMMUNICATIVE, NUM_CLS_TRANSPORTING, NUM_CLS_AGE
 from helpers import makedir, draw_curves
 from _SLENN import MultiSLE
-from _baselines import PCPA, BackBones, TEO
+from models.baselines import PCPA, BackBones, TEO
 from _SENN import MultiSENN
 from _train_test_SLE2 import train_test2
 from _train_test_SENN import train_test_SENN

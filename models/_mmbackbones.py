@@ -65,7 +65,7 @@ if __name__ == '__main__':
     
     output = backbone(d)
     print(output.size())
-    from _backbones import create_backbone
+    from models.backbones import create_backbone
     backbone2 = create_backbone('C3Dpose')
     output2 = backbone2(d)
     print(output2.size())

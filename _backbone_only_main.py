@@ -15,18 +15,12 @@ import re
 import copy
 import numpy as np
 
-from _datasets import PIEDataset
-from helpers import makedir, draw_curves
+from tools.datasets.PIE_JAAD import PIEDataset
+
+from tools.utils import makedir, draw_curves
 from _proto_model import ImagePNet, SkeletonPNet, MultiPNet, MultiBackbone, NonlocalMultiPNet
-from _backbones import create_backbone, record_conv3d_info, record_conv2d_info, record_sp_conv3d_info_w, record_t_conv3d_info, record_sp_conv2d_info_h, record_sp_conv2d_info_w, BackboneOnly
-import _project_prototypes
-import prune
 import _multi_train_test as tnt
-import save
 from log import create_logger
-from preprocess import preprocess_input_function
-from receptive_field import compute_proto_layer_rf_info_v2
-from utils import draw_proto_info_curves
 
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 

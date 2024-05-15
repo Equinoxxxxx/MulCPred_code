@@ -22,6 +22,7 @@ from ..utils import mapping_20, makedir, ltrb2xywh, coord2pseudo_heatmap, cls_we
 from ..transforms import RandomHorizontalFlip, RandomResizedCrop, crop_local_ctx
 from ..data._img_mean_std import img_mean_std
 from ..general import HiddenPrints
+from config import dataset_root
 
 
 class PIEDataset(Dataset):
@@ -113,12 +114,7 @@ class PIEDataset(Dataset):
 
         # data opts
         if dataset_name == 'PIE':
-            self.root_path = '/home/y_feng/workspace6/datasets/PIE_dataset'
-            self.sk_vis_path = '/home/y_feng/workspace6/datasets/PIE_dataset/sk_vis/even_padded/288w_by_384h/'
-            self.sk_coord_path = '/home/y_feng/workspace6/datasets/PIE_dataset/sk_coords/even_padded/288w_by_384h/'
-            self.sk_heatmap_path = '/home/y_feng/workspace6/datasets/PIE_dataset/sk_heatmaps/even_padded/288w_by_384h/'
-            self.sk_p_heatmap_path = '/home/y_feng/workspace6/datasets/PIE_dataset/sk_pseudo_heatmaps/even_padded/48w_by_48h/'
-            self.sam_seg_root = '/home/y_feng/workspace6/datasets/PIE_dataset/seg_sam'
+            self.root_path = os.path.join(dataset_root, 'PIE_dataset')
             self.data_opts = {'normalize_bbox': normalize_pos,
                          'fstride': 1,
                          'sample_type': 'all',
@@ -143,12 +139,7 @@ class PIEDataset(Dataset):
             with HiddenPrints():
                 data_base = PIE(data_path=self.root_path)
         else:
-            self.root_path = '/home/y_feng/workspace6/datasets/JAAD'
-            self.sk_vis_path = '/home/y_feng/workspace6/datasets/JAAD/sk_vis/even_padded/288w_by_384h/'
-            self.sk_coord_path = '/home/y_feng/workspace6/datasets/JAAD/sk_coords/even_padded/288w_by_384h/'
-            self.sk_heatmap_path = '/home/y_feng/workspace6/datasets/JAAD/sk_heatmaps/even_padded/288w_by_384h/'
-            self.sk_p_heatmap_path = '/home/y_feng/workspace6/datasets/JAAD/sk_pseudo_heatmaps/even_padded/48w_by_48h/'
-            self.sam_seg_root = '/home/y_feng/workspace6/datasets/JAAD/seg_sam'
+            self.root_path = os.path.join(dataset_root, 'JAAD')
             self.data_opts = {'fstride': 1,
                             'sample_type': 'all',  
                             'subset': 'default',
@@ -164,14 +155,18 @@ class PIEDataset(Dataset):
                             'kfold_params': {'num_folds': 5, 'fold': 1}}
             with HiddenPrints():
                 data_base = JAAD(data_path=self.root_path)
+        
+        self.extra_data_root = self.root_path
+        self.sk_vis_path = os.path.join(self.root_path, '/sk_vis/even_padded/288w_by_384h/')
+        self.sk_coord_path = os.path.join(self.root_path, 'sk_coords/even_padded/288w_by_384h/')
+        self.sk_heatmap_path = os.path.join(self.root_path, 'sk_heatmaps/even_padded/288w_by_384h/')
+        self.sk_p_heatmap_path = os.path.join(self.root_path, 'sk_pseudo_heatmaps/even_padded/48w_by_48h/')
+        self.sam_seg_root = os.path.join(self.root_path, 'seg_sam')
         self.veh_info_path = os.path.join(self.root_path, 'veh_tracks.pkl')
         self.imgnm_to_objid_path = os.path.join(self.root_path, 
                                                 'imgnm_to_objid_to_ann.pkl')
-        
         if self.tte is not None:
-
             self.data_opts['min_track_size'] += self.tte[1]
-
         self.cropped_path = os.path.join(self.root_path, 
                                          'cropped_images', 
                                          resize_mode, 

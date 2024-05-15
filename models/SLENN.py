@@ -1,16 +1,9 @@
-from os import kill
-from pickle import NONE
-from turtle import forward
-from matplotlib import use
-from numpy import indices
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from _backbones import create_backbone
-from _backbones import C3D_backbone
-from receptive_field import compute_proto_layer_rf_info_v2
+from models.backbones import create_backbone
 from utils import last_conv_channel, last_lstm_channel, freeze
 
 from tools.datasets.TITAN import NUM_CLS_ATOMIC, NUM_CLS_COMPLEX, NUM_CLS_COMMUNICATIVE, NUM_CLS_TRANSPORTING, NUM_CLS_AGE

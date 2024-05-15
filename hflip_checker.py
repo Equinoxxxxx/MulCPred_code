@@ -15,7 +15,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import cv2
-from _backbones import C3D_backbone, SkeletonConv2D, create_backbone, record_conv3d_info
+from models.backbones import C3D_backbone, SkeletonConv2D, create_backbone, record_conv3d_info
 from _proto_model import ImagePNet, SkeletonPNet, MultiBackbone
 from _train_test import joint, warm_only, last_only
 import pdb

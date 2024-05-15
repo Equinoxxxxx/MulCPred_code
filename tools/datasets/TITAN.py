@@ -26,6 +26,7 @@ from ..utils import mapping_20, ltrb2xywh, coord2pseudo_heatmap, TITANclip_txt2l
 from ..data._img_mean_std import img_mean_std
 from ..transforms import RandomHorizontalFlip, RandomResizedCrop, crop_local_ctx
 from torchvision.transforms import functional as TVF
+from config import dataset_root
 
 
 ATOM_ACTION_LABEL_ORI = {  # 3 no samples; 7, 8 no test samples
@@ -297,32 +298,36 @@ class TITAN_dataset(Dataset):
                                             'ctx': None,
                                             'sk': None}}
 
-        self.ori_data_root = '/home/y_feng/workspace6/datasets/TITAN/honda_titan_dataset/dataset'
-        self.extra_data_root = '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra'
+        self.ori_data_root = os.path.join(dataset_root, 'TITAN/honda_titan_dataset/dataset')
+        self.extra_data_root = os.path.join(dataset_root, 'TITAN/TITAN_extra')
         self.cropped_img_root = os.path.join(self.extra_data_root,
                                              'cropped_images', 
-                                             self.img_mode, 
+                                             self.resize_mode, 
                                              str(img_size[1])+'w_by_'\
                                                 +str(img_size[0])+'h')
+        if self.ctx_format == 'ped_graph':
+            ctx_format_dir = 'ori_local'
+        else:
+            ctx_format_dir = self.ctx_format
         self.ctx_root = os.path.join(self.extra_data_root, 
                                      'context', 
-                                     self.ctx_mode, 
+                                     ctx_format_dir, 
                                      str(ctx_size[1])+'w_by_'\
                                         +str(ctx_size[0])+'h')
-        self.ped_ori_local_root = '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra/context/ori_local/224w_by_224h/ped'
-        self.sk_vis_path = '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra/sk_vis/even_padded/288w_by_384h/'
-        self.sk_coord_path = '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra/sk_coords/even_padded/288w_by_384h/'
-        self.sk_heatmap_path = '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra/sk_heatmaps/even_padded/288w_by_384h/'
-        self.sk_p_heatmap_path = '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra/sk_pseudo_heatmaps/even_padded/48w_by_48h/'
-        self.seg_root = '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra/seg_sam'
+        self.ped_ori_local_root = os.path.join(dataset_root, 'TITAN/TITAN_extra/context/ori_local/224w_by_224h/ped')
+        self.sk_vis_path = os.path.join(dataset_root, 'TITAN/TITAN_extra/sk_vis/even_padded/288w_by_384h/')
+        self.sk_coord_path = os.path.join(dataset_root, 'TITAN/TITAN_extra/sk_coords/even_padded/288w_by_384h/')
+        self.sk_heatmap_path = os.path.join(dataset_root, 'TITAN/TITAN_extra/sk_heatmaps/even_padded/288w_by_384h/')
+        self.sk_p_heatmap_path = os.path.join(dataset_root, 'TITAN/TITAN_extra/sk_pseudo_heatmaps/even_padded/48w_by_48h/')
+        self.seg_root = os.path.join(dataset_root, 'TITAN/TITAN_extra/seg_sam')
         if self.sub_set == 'default_train':
-            clip_txt_path = '/home/y_feng/workspace6/datasets/TITAN/honda_titan_dataset/dataset/train_set.txt'
+            clip_txt_path = os.path.join(dataset_root, 'TITAN/honda_titan_dataset/dataset/train_set.txt')
         elif self.sub_set == 'default_val':
-            clip_txt_path = '/home/y_feng/workspace6/datasets/TITAN/honda_titan_dataset/dataset/val_set.txt'
+            clip_txt_path = os.path.join(dataset_root, 'TITAN/honda_titan_dataset/dataset/val_set.txt')
         elif self.sub_set == 'default_test':
-            clip_txt_path = '/home/y_feng/workspace6/datasets/TITAN/honda_titan_dataset/dataset/test_set.txt'
+            clip_txt_path = os.path.join(dataset_root, 'TITAN/honda_titan_dataset/dataset/test_set.txt')
         elif self.sub_set == 'all':
-            clip_txt_path = '/home/y_feng/workspace6/datasets/TITAN/honda_titan_dataset/titan_clips.txt'
+            clip_txt_path = os.path.join(dataset_root, 'TITAN/honda_titan_dataset/titan_clips.txt')
         else:
             raise NotImplementedError(self.sub_set)
         self.imgnm_to_objid_path = os.path.join(self.extra_data_root, 
