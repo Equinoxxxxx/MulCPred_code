@@ -1,6 +1,5 @@
 import os
 import pickle
-import shutil
 import time
 
 import torch
@@ -10,46 +9,43 @@ import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 import argparse
-import re
 import copy
 import numpy as np
 from tqdm import tqdm
 
 from tools.datasets.PIE_JAAD import PIEDataset
 from tools.datasets.TITAN import TITAN_dataset
-from helpers import makedir, draw_curves
-import _multi_train_test as tnt
-import save
-from log import create_logger
+from tools.utils import makedir, draw_curves, img_nm_int2str, vid_id_int2str, ped_id_int2str, \
+    draw_boxes_on_img, visualize_featmap3d_simple
+from tools.log import create_logger
 from tools.metrics import *
 from tools.plot import vis_ego_sample, vis_weight_single_cls, EGO_RANGE
-from _train_test_SLE2 import train_test2
-from utils import img_nm_int2str, vid_id_int2str, ped_id_int2str, \
-    draw_boxes_on_img, visualize_featmap3d_simple
+from train_test import train_test2
+from config import dataset_root
 
 
 BG_ROOT = {
-    'PIE': '/home/y_feng/workspace6/datasets/PIE_dataset/images',
-    'JAAD': '/home/y_feng/workspace6/datasets/JAAD/images',
-    'TITAN': '/home/y_feng/workspace6/datasets/TITAN/honda_titan_dataset/dataset/images_anonymized'
+    'PIE': os.path.join(dataset_root, 'PIE_dataset/images'),
+    'JAAD': os.path.join(dataset_root, 'JAAD/images'),
+    'TITAN': os.path.join(dataset_root, 'TITAN/honda_titan_dataset/dataset/images_anonymized')
 }
 
 IMG_ROOT = {
-    'PIE': '/home/y_feng/workspace6/datasets/PIE_dataset/cropped_images/even_padded/224w_by_224h',
-    'JAAD': '/home/y_feng/workspace6/datasets/JAAD/cropped_images/even_padded/224w_by_224h',
-    'TITAN': '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra/cropped_images/even_padded/224w_by_224h/ped/'
+    'PIE': os.path.join(dataset_root, 'PIE_dataset/cropped_images/even_padded/224w_by_224h'),
+    'JAAD': os.path.join(dataset_root, 'JAAD/cropped_images/even_padded/224w_by_224h'),
+    'TITAN': os.path.join(dataset_root, 'TITAN/TITAN_extra/cropped_images/even_padded/224w_by_224h/ped/')
 }
 
 SK_ROOT = {
-    'PIE': '/home/y_feng/workspace6/datasets/PIE_dataset/sk_vis/even_padded/288w_by_384h',
-    'JAAD': '/home/y_feng/workspace6/datasets/JAAD/sk_vis/even_padded/288w_by_384h',
-    'TITAN': '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra/sk_vis/even_padded/288w_by_384h/'
+    'PIE': os.path.join(dataset_root, 'PIE_dataset/sk_vis/even_padded/288w_by_384h'),
+    'JAAD': os.path.join(dataset_root, 'JAAD/sk_vis/even_padded/288w_by_384h'),
+    'TITAN': os.path.join(dataset_root, 'TITAN/TITAN_extra/sk_vis/even_padded/288w_by_384h/')
 }
 
 CTX_ROOT = {
-    'PIE': '/home/y_feng/workspace6/datasets/PIE_dataset/context/ori_local/224w_by_224h',
-    'JAAD': '/home/y_feng/workspace6/datasets/JAAD/context/ori_local/224w_by_224h',
-    'TITAN': '/home/y_feng/workspace6/datasets/TITAN/TITAN_extra/context/ori_local/224w_by_224h/ped',
+    'PIE': os.path.join(dataset_root, 'PIE_dataset/context/ori_local/224w_by_224h'),
+    'JAAD': os.path.join(dataset_root, 'JAAD/context/ori_local/224w_by_224h'),
+    'TITAN': os.path.join(dataset_root, 'TITAN/TITAN_extra/context/ori_local/224w_by_224h/ped'),
 }
 
 def main():
@@ -67,6 +63,8 @@ def main():
     parser.add_argument('--exp_type', type=str, 
                         default='custom_mask',
                         help='custom_mask or select_sample or morf')
+    parser.add_argument('--exp_type', type=int,
+                        help='concept indeces to keep, split by space')
     parser.add_argument('--cross_dataset_exp', type=int, default=0)
     parser.add_argument('--dataset_name', type=str, default='TITAN')
     parser.add_argument('--split', type=str, default='test')

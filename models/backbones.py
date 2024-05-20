@@ -6,14 +6,14 @@ import torch.nn as nn
 from thop import profile
 # from torchviz import make_dot
 from torchsummary import summary
+import os
 
 from copy import deepcopy
 
 import models.R3D as R3D
 import models.I3D as I3D
-from _mmbackbones2 import create_mm_backbones
-
-pretrained_path = '../work_dirs/models/c3d-pretrained.pth'
+from ._mmbackbones2 import create_mm_backbones
+from config import ckpt_root
 
 BACKBONE_TO_OUTDIM = {
     'C3D': 512,
@@ -369,7 +369,7 @@ class C3D_backbone(nn.Module):
         self.last_channel = 512
         self.__init_weight()
 
-        self.pretrained_path = '../work_dirs/models/c3d-pretrained.pth'
+        self.pretrained_path = os.path.join(ckpt_root, 'c3d-pretrained.pth')
         if pretrained:
             self.__load_pretrained_weights()
 
@@ -487,7 +487,7 @@ class C3D_full(nn.Module):
 
         self.relu = nn.ReLU()
 
-        self.pretrained_path = '../work_dirs/models/c3d-pretrained.pth'
+        self.pretrained_path = os.path.join(ckpt_root, 'c3d-pretrained.pth')
         self.__init_weight()
 
         if pretrained:
@@ -605,7 +605,7 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
     elif backbone_name == 'C3D_full':
         backbone = C3D_full(last_dim=last_dim, pretrained=True)
     elif backbone_name == 'R3D18':  # 3, 16, 224, 224 -> 512, 1, 7, 7
-        pretrained_path = '../work_dirs/models/r3d18_KM_200ep.pth'
+        pretrained_path = os.path.join(ckpt_root, 'r3d18_KM_200ep.pth')
         backbone = R3D.generate_model(18)
         pretrained = torch.load(pretrained_path, map_location='cpu')
         p_dict = pretrained['state_dict']  # keys必须完全一致
@@ -620,7 +620,7 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
     # elif backbone_name == 'R3D34_new':
     #     backbone = _R3D.generate_model(34, t_downsample=False)
     elif backbone_name == 'R3D50':  # 3, 16, 224, 224 -> 2048 1 7 7
-        pretrained_path = '../work_dirs/models/r3d50_KMS_200ep.pth'
+        pretrained_path = os.path.join(ckpt_root, 'r3d50_KMS_200ep.pth')
         backbone = R3D.generate_model(50)
         pretrained = torch.load(pretrained_path, map_location='cpu')
         p_dict = pretrained['state_dict']  # keys必须完全一致
@@ -629,7 +629,7 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
                 p_dict.pop(name)
         backbone.load_state_dict(p_dict)
     elif backbone_name == 'R3D50_no_max':  # 3, 16, 224, 224 -> 2048 1 7 7
-        pretrained_path = '../work_dirs/models/r3d50_KMS_200ep.pth'
+        pretrained_path = os.path.join(ckpt_root, 'r3d50_KMS_200ep.pth')
         backbone = R3D.generate_model(50, no_max_pool=True)
         pretrained = torch.load(pretrained_path, map_location='cpu')
         p_dict = pretrained['state_dict']  # keys必须完全一致
@@ -640,7 +640,7 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
     elif backbone_name == 'R3D50_clean':
         backbone = R3D.generate_model(50, pretrained=False)
     elif backbone_name == 'R3D50_new':
-        pretrained_path = '../work_dirs/models/r3d50_KMS_200ep.pth'
+        pretrained_path = os.path.join(ckpt_root, 'r3d50_KMS_200ep.pth')
         backbone = R3D.generate_model(50, t_downsample=False)
         pretrained = torch.load(pretrained_path, 
                                 map_location='cpu')
@@ -651,7 +651,7 @@ def create_backbone(backbone_name, lstm_h_dim=128, lstm_input_dim=4, last_dim=48
         backbone.load_state_dict(p_dict)
     elif backbone_name == 'I3D':
         backbone = I3D.I3D_backbone()
-        p_dict = torch.load('/home/y_feng/workspace6/work/ProtoPNet/work_dirs/models/i3d_model_rgb.pth')
+        p_dict = torch.load(os.path.join(ckpt_root, 'i3d_model_rgb.pth'))
         p_dict.pop('conv3d_0c_1x1.conv3d.weight')
         p_dict.pop('conv3d_0c_1x1.conv3d.bias')
         backbone.load_state_dict(p_dict)

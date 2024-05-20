@@ -8,10 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from models.backbones import create_backbone
-from models.backbones import C3D_backbone
-from receptive_field import compute_proto_layer_rf_info_v2
-from utils import last_conv_channel, last_lstm_channel
 from tools.datasets.TITAN import NUM_CLS_ATOMIC, NUM_CLS_COMPLEX, NUM_CLS_COMMUNICATIVE, NUM_CLS_TRANSPORTING, NUM_CLS_AGE
+from config import ckpt_root
 
 
 FLATTEN_DIM = {

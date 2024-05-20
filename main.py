@@ -1,41 +1,28 @@
 import os
 import pickle
-import shutil
 import time
-from turtle import resizemode
 
 import torch
 import torch.utils.data
 # import torch.utils.data.distributed
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
 import torch.multiprocessing
 import pytorch_warmup as warmup
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 import argparse
-import re
-import copy
 import numpy as np
 
 from tools.datasets.PIE_JAAD import PIEDataset
 from tools.datasets.TITAN import TITAN_dataset
-from tools.datasets.TITAN import LABEL2DICT, NUM_CLS_ATOMIC, \
-    NUM_CLS_COMPLEX, NUM_CLS_COMMUNICATIVE, NUM_CLS_TRANSPORTING, NUM_CLS_AGE
-from helpers import makedir, draw_curves
-from _SLENN import MultiSLE
-from models.baselines import PCPA, BackBones, TEO
-from _SENN import MultiSENN
-from _train_test_SLE2 import train_test2
-from _train_test_SENN import train_test_SENN
-from _SLE_explain import SLE_explaine
-from _SENN_explain import SENN_explaine
-import save
-from log import create_logger
-from utils import draw_proto_info_curves, save_model, freeze, cls_weights, seed_all
-from tools.plot import vis_weight_single_cls, draw_logits_histogram, \
-    draw_multi_task_curve, draw_train_test_curve, draw_train_val_test_curve
-from tools.gpu_mem_track import MemTracker
+from tools.datasets.TITAN import LABEL2DICT, NUM_CLS_ATOMIC
+from tools.utils import makedir
+from models.SLENN import MultiSLE
+from train_test import train_test2
+from explain import rank_samples
+from tools.log import create_logger
+from tools.utils import save_model, cls_weights, seed_all
+from tools.plot import vis_weight_single_cls, draw_logits_histogram, draw_train_val_test_curve
+from config import ckpt_root
 
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.enabled = False
@@ -48,32 +35,31 @@ def main():
     parser.add_argument('--model_name', type=str, default='SLE')
     parser.add_argument('--pool', type=str, default='avg')
     parser.add_argument('--q_modality', type=str, default='ego')
-    parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch_size', type=int, default=16)
-    parser.add_argument('--warm_strategy', type=str, default='backbone_later')
+    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--warm_strategy', type=str, default='none')
     parser.add_argument('--warm_step_type', type=str, default='epoch')
     parser.add_argument('--warm_step', type=int, default=3)
-    parser.add_argument('--test_every', type=int, default=10)
+    parser.add_argument('--test_every', type=int, default=2)
     parser.add_argument('--explain_every', type=int, default=10)
     parser.add_argument('--vis_every', type=int, default=20)
     parser.add_argument('--lr', type=float, default=0.0001)
-    parser.add_argument('--backbone_lr', type=float, default=1e-7)
+    parser.add_argument('--backbone_lr', type=float, default=1e-5)
     parser.add_argument('--scheduler', type=str, default='step')
     parser.add_argument('--t_max', type=int, default=5)
-    parser.add_argument('--lr_step_size', type=int, default=10)
-    parser.add_argument('--lr_step_gamma', type=float, default=0.5)
+    parser.add_argument('--lr_step_size', type=int, default=25)
+    parser.add_argument('--lr_step_gamma', type=float, default=0.1)
     parser.add_argument('--loss_func', type=str, default='weighted_ce')
     parser.add_argument('--loss_weight', type=str, default='sklearn')
     parser.add_argument('--loss_weight_batch', type=int, default=0)
-    parser.add_argument('--orth_type', type=int, default=0)
+    parser.add_argument('--orth_type', type=int, default=3)
     parser.add_argument('--weight_decay', type=float, default=1e-3)
     parser.add_argument('--one_logit', type=int, default=0)
     parser.add_argument('--key_metric', type=str, default='f1')
-
     parser.add_argument('--gpuid', type=str, default='0') # python3 main.py -gpuid=0,1,2,3
 
     # data setting
-    parser.add_argument('--seq_type', type=str, default='trajectory')
+    parser.add_argument('--seq_type', type=str, default='crossing')
     parser.add_argument('--small_set', type=float, default=0)
     parser.add_argument('--bbox_type', type=str, default='default')
     parser.add_argument('--ctx_shape_type', type=str, default='default')
@@ -86,12 +72,12 @@ def main():
     parser.add_argument('--recog_act', type=int, default=0)
     parser.add_argument('--norm_pos', type=int, default=0)
     parser.add_argument('--obs_interval', type=int, default=0)
-    parser.add_argument('--augment_mode', type=str, default='none')
+    parser.add_argument('--augment_mode', type=str, default='random_hflip_crop')
 
-    parser.add_argument('--dataset_name', type=str, default='JAAD')
+    parser.add_argument('--dataset_name', type=str, default='TITAN')
     parser.add_argument('--cross_dataset_name', type=str, default='PIE')
     parser.add_argument('--cross_dataset', type=int, default=0)
-    parser.add_argument('--balance_train', type=int, default=1)
+    parser.add_argument('--balance_train', type=int, default=0)
     parser.add_argument('--balance_val', type=int, default=0)
     parser.add_argument('--balance_test', type=int, default=0)
     parser.add_argument('--shuffle', type=int, default=1)
@@ -101,11 +87,11 @@ def main():
     parser.add_argument('--max_occ', type=int, default=2)
     parser.add_argument('--test_max_occ', type=int, default=2)
     parser.add_argument('--data_split_type', type=str, default='default')
-    parser.add_argument('--min_h', type=int, default=0)
+    parser.add_argument('--min_h', type=int, default=70)
     parser.add_argument('--min_w', type=int, default=0)
     parser.add_argument('--test_min_w', type=int, default=0)
     parser.add_argument('--test_min_h', type=int, default=0)
-    parser.add_argument('--overlap', type=float, default=0.6)
+    parser.add_argument('--overlap', type=float, default=0.5)
     parser.add_argument('--test_overlap', type=float, default=0.6)
     parser.add_argument('--dataloader_workers', type=int, default=8)
     parser.add_argument('--pop_occl_track', type=int, default=0)
@@ -116,9 +102,9 @@ def main():
     parser.add_argument('--conditioned_proto', type=int, default=1)
     parser.add_argument('--conditioned_relevance', type=int, default=1)
     parser.add_argument('--num_explain', type=int, default=5)
-    parser.add_argument('--num_proto_per_modality', type=int, default=5)
+    parser.add_argument('--num_proto_per_modality', type=int, default=10)
     parser.add_argument('--proto_dim', type=int, default=256)
-    parser.add_argument('--simi_func', type=str, default='dot')
+    parser.add_argument('--simi_func', type=str, default='channel_att+linear')
     parser.add_argument('--pred_traj', type=int, default=0)
     parser.add_argument('--freeze_base', type=int, default=0)
     parser.add_argument('--freeze_proto', type=int, default=0)
@@ -132,32 +118,32 @@ def main():
     parser.add_argument('--use_age', type=int, default=0)
     parser.add_argument('--use_cross', type=int, default=1)
     parser.add_argument('--multi_label_cross', type=int, default=0)
-    parser.add_argument('--lambda1', type=float, default=0.01)
-    parser.add_argument('--lambda2', type=float, default=1.)
-    parser.add_argument('--lambda3', type=float, default=0.1)
-    parser.add_argument('--lambda_contrast', type=float, default=0.1)
+    parser.add_argument('--lambda1', type=float, default=0.1)
+    # parser.add_argument('--lambda2', type=float, default=1.)
+    # parser.add_argument('--lambda3', type=float, default=0)
+    parser.add_argument('--lambda2', type=float, default=0.5)
     parser.add_argument('--contrast_mode', type=str, default='barlow_twins')
-    parser.add_argument('--backbone_add_on', type=int, default=1)
+    parser.add_argument('--backbone_add_on', type=int, default=0)
     parser.add_argument('--score_sum_linear', type=int, default=1)
 
     # img setting
     parser.add_argument('--use_img', type=int, default=1)
-    parser.add_argument('--img_backbone_name', type=str, default='C3D')
+    parser.add_argument('--img_backbone_name', type=str, default='C3D_new')
     # sk setting
-    parser.add_argument('--use_skeleton', type=int, default=0)
-    parser.add_argument('--sk_mode', type=str, default='heatmap')
+    parser.add_argument('--use_skeleton', type=int, default=1)
+    parser.add_argument('--sk_mode', type=str, default='pseudo_heatmap')
     parser.add_argument('--sk_backbone_name', type=str, default='poseC3D_pretrained')
     # ctx setting
     parser.add_argument('--use_context', type=int, default=1)
     parser.add_argument('--ctx_mode', type=str, default='ori_local')
     parser.add_argument('--seg_mode', type=int, default=0)
-    parser.add_argument('--ctx_backbone_name', type=str, default='C3D')
+    parser.add_argument('--ctx_backbone_name', type=str, default='C3D_new')
     # traj setting
     parser.add_argument('--use_traj', type=int, default=1)
     parser.add_argument('--traj_mode', type=str, default='ltrb')
     parser.add_argument('--traj_backbone_name', type=str, default='lstm')
     # ego setting
-    parser.add_argument('--use_ego', type=int, default=0)
+    parser.add_argument('--use_ego', type=int, default=1)
     parser.add_argument('--ego_backbone_name', type=str, default='lstm')
 
     # visualize setting
@@ -167,9 +153,6 @@ def main():
     parser.add_argument('--test_only', type=int, default=0)
     parser.add_argument('--model_path', type=str, default='../work_dirs/models/multi_img/27Feb2022-20h48m16s/78nopush0.8241.pth')
     parser.add_argument('--config_path', type=str, default=None)
-
-    # SENN setting
-    parser.add_argument('--use_robust', type=int, default=1)
 
     args = parser.parse_args()
     
@@ -280,8 +263,6 @@ def main():
     multi_label_cross = args.multi_label_cross
     lambda1 = args.lambda1
     lambda2 = args.lambda2
-    lambda3 = args.lambda3
-    lambda_contrast = args.lambda_contrast
     backbone_add_on = args.backbone_add_on
     score_sum_linear = args.score_sum_linear
 
@@ -313,7 +294,6 @@ def main():
     # vis setting
     vis_feat_mode = args.vis_feat_mode
 
-    use_robust = args.use_robust
 
     # conditioned config
     if 'R3D' in img_backbone_name or 'csn' in img_backbone_name\
@@ -340,9 +320,8 @@ def main():
 
     if model_name != 'SLE':
         warm_strategy = ''
-        lambda_contrast = 0
+        lambda2 = 0
         lambda1 = 0
-        lambda3 = 0
     if model_name == 'PCPA':
         use_img = 0
         # ctx_backbone_name = 'C3D'
@@ -365,8 +344,6 @@ def main():
         use_ego = 0
         use_skeleton = 0
         use_context = 0
-        norm_pos = 0
-    elif model_name == 'SENN':
         norm_pos = 0
 
     if seg_mode == 0:
@@ -764,52 +741,21 @@ def main():
     
     # construct the model
     log('----------------------------Construct model-----------------------------')
-    if model_name == 'SLE':
-        model = MultiSLE(num_classes=num_classes,
-                        use_atomic=use_atomic, 
-                        use_complex=use_complex, 
-                        use_communicative=use_communicative, 
-                        use_transporting=use_transporting, 
-                        use_age=use_age,
-                        use_img=use_img, img_setting=img_setting,
-                        use_skeleton=use_skeleton, sk_setitng=sk_setting,
-                        use_context=use_context, ctx_setting=ctx_setting,
-                        use_traj=use_traj, traj_setting=traj_setting,
-                        use_ego=use_ego, ego_setting=ego_setting,
-                        pred_traj=pred_traj, pred_len=pred_len,
-                        fusion_mode=fusion_mode,
-                        trainable_weights=trainable_weights,
-                        init_class_weights=train_dataset.class_weights)
-    elif model_name == 'PCPA':
-        model = PCPA(h_dim=proto_dim, q_modality=q_modality, num_classes=num_classes,
-                    use_cross=use_cross,
-                    use_atomic=use_atomic, use_complex=use_complex, use_communicative=use_communicative, use_transporting=use_transporting, use_age=use_age,
+    model = MultiSLE(num_classes=num_classes,
+                    use_atomic=use_atomic, 
+                    use_complex=use_complex, 
+                    use_communicative=use_communicative, 
+                    use_transporting=use_transporting, 
+                    use_age=use_age,
+                    use_img=use_img, img_setting=img_setting,
+                    use_skeleton=use_skeleton, sk_setitng=sk_setting,
+                    use_context=use_context, ctx_setting=ctx_setting,
+                    use_traj=use_traj, traj_setting=traj_setting,
+                    use_ego=use_ego, ego_setting=ego_setting,
+                    pred_traj=pred_traj, pred_len=pred_len,
+                    fusion_mode=fusion_mode,
                     trainable_weights=trainable_weights,
                     init_class_weights=train_dataset.class_weights)
-    elif model_name == 'backbone':
-        model = BackBones(backbone_name=img_backbone_name, num_classes=num_classes,
-                            use_cross=use_cross,
-                            use_atomic=use_atomic, use_complex=use_complex, use_communicative=use_communicative, use_transporting=use_transporting, use_age=use_age,
-                            pool=pool,
-                            trainable_weights=trainable_weights,
-                            init_class_weights=train_dataset.class_weights)
-    elif model_name == 'TEO':
-        model = TEO(num_layers= 4, d_model=128,
-                              d_input=4, num_heads=8, 
-                              dff=256, maximum_position_encoding= obs_len, device=device,
-                              num_classes=num_classes,
-                              use_cross=use_cross,
-                              use_atomic=use_atomic, use_complex=use_complex, use_communicative=use_communicative, use_transporting=use_transporting, use_age=use_age,
-                              trainable_weights=trainable_weights,
-                              init_class_weights=train_dataset.class_weights)
-    elif model_name == 'SENN':
-        model = MultiSENN(use_traj=use_traj, 
-                          use_ego=use_ego, 
-                          use_img=use_img, 
-                          use_sk=use_skeleton, 
-                          use_ctx=use_context,
-                          num_classes=num_classes,
-                          pred_k=pred_k)
     model = model.to(device)
     model_parallel = torch.nn.DataParallel(model)
     
@@ -819,12 +765,7 @@ def main():
     #         print(n, p.requires_grad)
     # define optimizer
     log('----------------------------Construct optimizer-----------------------------')
-    if model_name in ('PCPA', 'backbone', 'TEO', 'SENN'):
-        opt_specs = [{'params': model.parameters(), 'weight_decay': weight_decay},
-                    #  {'params': model.last_fc.weight, 'weight_decay': 1e-3}
-                     ]
-        optimizer = torch.optim.Adam(opt_specs, lr=lr)
-    elif backbone_lr != lr:
+    if backbone_lr != lr:
         backbone_paras = []
         other_paras = []
         for name, p in model.named_parameters():
@@ -917,26 +858,6 @@ def main():
             cur_optimizer = warm_optimizer
             cur_scheduler = warm_scheduler
             cur_warmer = warm_warmer
-        if model_name == 'SENN':
-            train_res=train_test_SENN(model=model_parallel, 
-                                        dataloader=train_loader, 
-                                        optimizer=cur_optimizer,
-                                        log=log, 
-                                        device=device,
-                                        data_types=data_types,
-                                        display_logits=True,
-                                        num_classes=num_classes,
-                                        multi_label_cross=multi_label_cross, 
-                                        use_cross=use_cross,
-                                        use_atomic=use_atomic, 
-                                        use_complex=use_complex, 
-                                        use_communicative=use_communicative, 
-                                        use_transporting=use_transporting, 
-                                        use_age=use_age,
-                                        use_robust=use_robust,
-                                        mask=None,
-                                        pred_k=pred_k
-                                        )
         else:
             train_res = train_test2(model=model_parallel,
                                 dataloader=train_loader,
@@ -959,9 +880,7 @@ def main():
                                 use_age=use_age,
                                 model_name=model_name,
                                 lambda1=lambda1,
-                                lambda2=lambda2,
-                                lambda3=lambda3,
-                                lambda_contrast=lambda_contrast)
+                                lambda2=lambda2)
         log('\tcur lr: ')
         for dict in cur_optimizer.state_dict()['param_groups']:
             log(str(dict['lr']))
@@ -971,100 +890,54 @@ def main():
         # test
         if e%test_every == 0:
             model_parallel.eval()
-            if model_name == 'SENN':
-                log('\nValidating')
-                val_res = train_test_SENN(model=model_parallel, 
-                                            dataloader=val_loader, 
-                                            optimizer=None,
-                                            log=log, 
-                                            device=device,
-                                            data_types=data_types,
-                                            display_logits=True,
-                                            num_classes=num_classes,
-                                            multi_label_cross=multi_label_cross, 
-                                            use_cross=use_cross,
-                                            use_atomic=use_atomic, 
-                                            use_complex=use_complex, 
-                                            use_communicative=use_communicative, 
-                                            use_transporting=use_transporting, 
-                                            use_age=use_age,
-                                            use_robust=use_robust,
-                                            mask=None,
-                                            pred_k=pred_k
-                                            )
-                log('\nTesting')
-                test_res = train_test_SENN(model=model_parallel, 
-                                            dataloader=test_loader, 
-                                            optimizer=None,
-                                            log=log, 
-                                            device=device,
-                                            data_types=data_types,
-                                            display_logits=True,
-                                            num_classes=num_classes,
-                                            multi_label_cross=multi_label_cross, 
-                                            use_cross=use_cross,
-                                            use_atomic=use_atomic, 
-                                            use_complex=use_complex, 
-                                            use_communicative=use_communicative, 
-                                            use_transporting=use_transporting, 
-                                            use_age=use_age,
-                                            use_robust=use_robust,
-                                            mask=None,
-                                            pred_k=pred_k
-                                            )
-            else:
-                log('\nValidating')
-                val_res = train_test2(model=model_parallel,
-                                dataloader=val_loader,
-                                optimizer=None,
-                                loss_func=loss_func,
-                                loss_weight=loss_weight,
-                                loss_weight_batch=loss_weight_batch,
-                                log=log,
-                                device=device,
-                                data_types=data_types,
-                                num_classes=num_classes,
-                                ctx_mode=ctx_mode,
-                                orth_type=orth_type,
-                                use_cross=use_cross,
-                                multi_label_cross=multi_label_cross, 
-                                use_atomic=use_atomic, use_complex=use_complex, use_communicative=use_communicative, use_transporting=use_transporting, use_age=use_age,
-                                model_name=model_name,
-                                lambda1=lambda1,
-                                lambda2=lambda2,
-                                lambda3=lambda3,
-                                lambda_contrast=lambda_contrast)
-                log('\nTesting')
-                test_res = train_test2(model=model_parallel,
-                                dataloader=test_loader,
-                                optimizer=None,
-                                loss_func=loss_func,
-                                loss_weight=loss_weight,
-                                loss_weight_batch=loss_weight_batch,
-                                log=log,
-                                device=device,
-                                data_types=data_types,
-                                num_classes=num_classes,
-                                ctx_mode=ctx_mode,
-                                orth_type=orth_type,
-                                use_cross=use_cross,
-                                multi_label_cross=multi_label_cross, 
-                                use_atomic=use_atomic, use_complex=use_complex, use_communicative=use_communicative, use_transporting=use_transporting, use_age=use_age,
-                                model_name=model_name,
-                                lambda1=lambda1,
-                                lambda2=lambda2,
-                                lambda3=lambda3,
-                                lambda_contrast=lambda_contrast)
-                for k in test_res['loss']:
-                    loss_curves['train'][k].append(train_res['loss'][k])
-                    loss_curves['val'][k].append(val_res['loss'][k])
-                    loss_curves['test'][k].append(test_res['loss'][k])
-                    path = os.path.join(model_dir, k+'_loss.png')
-                    draw_train_val_test_curve(loss_curves['train'][k], 
-                                              loss_curves['val'][k],
-                                                loss_curves['test'][k],
-                                                test_every=test_every,
-                                                path=path)
+            log('\nValidating')
+            val_res = train_test2(model=model_parallel,
+                            dataloader=val_loader,
+                            optimizer=None,
+                            loss_func=loss_func,
+                            loss_weight=loss_weight,
+                            loss_weight_batch=loss_weight_batch,
+                            log=log,
+                            device=device,
+                            data_types=data_types,
+                            num_classes=num_classes,
+                            ctx_mode=ctx_mode,
+                            orth_type=orth_type,
+                            use_cross=use_cross,
+                            multi_label_cross=multi_label_cross, 
+                            use_atomic=use_atomic, use_complex=use_complex, use_communicative=use_communicative, use_transporting=use_transporting, use_age=use_age,
+                            model_name=model_name,
+                            lambda1=lambda1,
+                            lambda2=lambda2)
+            log('\nTesting')
+            test_res = train_test2(model=model_parallel,
+                            dataloader=test_loader,
+                            optimizer=None,
+                            loss_func=loss_func,
+                            loss_weight=loss_weight,
+                            loss_weight_batch=loss_weight_batch,
+                            log=log,
+                            device=device,
+                            data_types=data_types,
+                            num_classes=num_classes,
+                            ctx_mode=ctx_mode,
+                            orth_type=orth_type,
+                            use_cross=use_cross,
+                            multi_label_cross=multi_label_cross, 
+                            use_atomic=use_atomic, use_complex=use_complex, use_communicative=use_communicative, use_transporting=use_transporting, use_age=use_age,
+                            model_name=model_name,
+                            lambda1=lambda1,
+                            lambda2=lambda2)
+            for k in test_res['loss']:
+                loss_curves['train'][k].append(train_res['loss'][k])
+                loss_curves['val'][k].append(val_res['loss'][k])
+                loss_curves['test'][k].append(test_res['loss'][k])
+                path = os.path.join(model_dir, k+'_loss.png')
+                draw_train_val_test_curve(loss_curves['train'][k], 
+                                            loss_curves['val'][k],
+                                            loss_curves['test'][k],
+                                            test_every=test_every,
+                                            path=path)
             
             # draw results of crossing classification
             if use_cross:
@@ -1164,7 +1037,7 @@ def main():
             log(f'Best val results: epoch {best_e}\n {best_val_res}')
             log(f'Test results: {best_test_res}')
         if e%explain_every == 0 and model_name == 'SLE':
-            SLE_explaine(model=model_parallel,
+            rank_samples(model=model_parallel,
                          dataloader=explain_loader,
                          device=device,
                          use_img=use_img,
@@ -1220,38 +1093,6 @@ def main():
                                               path=os.path.join(last_vis_path_e, 
                                                                 'transporting' + str(i) +'.png'))
 
-            if simi_func in ('fix_proto1', 'fix_proto2'):
-                if use_traj:
-                    log('traj proto vec: ' + str(torch.squeeze(model.traj_model.proto_vec.detach())))
-                    log('traj proto vec mean: ' + str(torch.mean(model.traj_model.proto_vec.detach())))
-                if use_ego:
-                    log('ego proto vec: ' + str(torch.squeeze(model.ego_model.proto_vec.detach())))
-                    log('ego proto vec mean: ' + str(torch.mean(model.ego_model.proto_vec.detach())))
-                if use_img:
-                    log('img proto vec: ' + str(torch.squeeze(model.img_model.proto_vec.detach())))
-                    log('img proto vec mean: ' + str(torch.mean(model.img_model.proto_vec.detach())))
-                if use_skeleton:
-                    log('sk proto vec: ' + str(torch.squeeze(model.sk_model.proto_vec.detach())))
-                    log('sk proto vec mean: ' + str(torch.mean(model.sk_model.proto_vec.detach())))
-                if use_context:
-                    log('ctx proto vec: ' + str(torch.squeeze(model.ctx_model.proto_vec.detach())))
-                    log('ctx proto vec mean: ' + str(torch.mean(model.ctx_model.proto_vec.detach())))
-        elif e%explain_every == 0 and model_name == 'SENN':
-            SENN_explaine(model=model_parallel,
-                         dataloader=train_loader,
-                         device=device,
-                         use_img=use_img,
-                         use_context=use_context,
-                         ctx_mode=ctx_mode,
-                         use_skeleton=use_skeleton,
-                         use_traj=use_traj,
-                         use_ego=use_ego,
-                         log=log,
-                         epoch_number=e,
-                         num_explain=num_explain,
-                         save_dir=proto_dir,
-                         norm_traj=norm_pos,
-                         )
     log(f'Best val results: epoch {best_e}\n {best_val_res}')
     log(f'Test results: {best_test_res}')
     logclose()

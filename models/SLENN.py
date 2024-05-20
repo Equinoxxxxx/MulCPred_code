@@ -4,8 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from models.backbones import create_backbone
-from utils import last_conv_channel, last_lstm_channel, freeze
-
+from tools.utils import last_conv_channel, last_lstm_channel, freeze
 from tools.datasets.TITAN import NUM_CLS_ATOMIC, NUM_CLS_COMPLEX, NUM_CLS_COMMUNICATIVE, NUM_CLS_TRANSPORTING, NUM_CLS_AGE
 
 class MultiSLE(nn.Module):

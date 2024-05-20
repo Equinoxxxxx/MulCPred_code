@@ -1,26 +1,18 @@
-from pickletools import optimize
-from socket import TIPC_ADDR_ID
 import time
-from pandas import MultiIndex
+
 from sklearn.preprocessing import label_binarize
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
-import numpy as np
-import cv2
-import os
 
-from helpers import list_of_distances, make_one_hot
-from utils import idx2onehot, cls_weights, get_cls_weights_multi, calc_n_samples_cls
+from tools.utils import idx2onehot, cls_weights, get_cls_weights_multi, calc_n_samples_cls, makedir
 from tools.metrics import *
 from _loss_fuctions import FocalLoss, FocalLoss2, \
     WeightedCrossEntropy, FocalLoss3, \
         calc_orth_loss, calc_orth_loss_fix, calc_balance_loss, focal_tversky, \
         dimension_wise_contrast
-from helpers import makedir
 from tools.datasets.TITAN import NUM_CLS_ATOMIC, \
     NUM_CLS_COMPLEX, NUM_CLS_COMMUNICATIVE, NUM_CLS_TRANSPORTING, NUM_CLS_AGE
-from tools.gpu_mem_track import MemTracker
 
 def train_test2(model, dataloader, optimizer=None, model_name='SLE',
                 loss_func='weighted_ce',
@@ -28,7 +20,10 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
                 loss_weight_batch=0,
                 log=print, device='cuda:0',
                 data_types=['img'],
-                check_grad=False, orth_type=0, vis_path=None, display_logits=True,
+                check_grad=False, 
+                orth_type=0, 
+                vis_path=None, 
+                display_logits=True,
                 num_classes=2,
                 ctx_mode='local',
                 multi_label_cross=0, 
@@ -40,9 +35,7 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
                 use_cross=1,
                 mask=None,
                 lambda1=0.01,
-                lambda2=1,
-                lambda3=0.1,
-                lambda_contrast=0.5,
+                lambda2=0.5,
                 ):
     # gpu_tracker = MemTracker()
     start = time.time()
@@ -217,7 +210,7 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
 
             # calc contrastive loss
             d_contrast_loss = 0
-            if lambda_contrast > 0 and model_name == 'SLE':
+            if lambda2 > 0 and model_name == 'SLE':
                 for k in feats:
                     _d_contrast_loss, simi_mat  = \
                         dimension_wise_contrast(feats[k])
@@ -225,14 +218,6 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
                     simi_mat_statis[k]['max'].append(torch.max(simi_mat.detach()).cpu().item())
                     simi_mat_statis[k]['min'].append(torch.min(simi_mat.detach()).cpu().item())
                 total_contrast += d_contrast_loss.item()
-
-            # calc balance loss
-            if lambda3 > 0:
-                if use_cross:
-                    balance_loss += calc_balance_loss(model.module.last_layer.weight)
-                if use_atomic:
-                    balance_loss += calc_balance_loss(model.module.atomic_layer.weight)
-                total_balance += balance_loss.item()
 
             # calc cross entropy
             ce_losses = {}
@@ -330,14 +315,13 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
             # calc losses and backward
             if is_train:
                 loss = mse_loss + \
-                    lambda1*((1-lambda_contrast)*orth_loss+lambda_contrast*d_contrast_loss) + \
-                        lambda3*balance_loss
+                    lambda1*((1-lambda2)*orth_loss+lambda2*d_contrast_loss)
                 for k in ce_losses:
                     # loss = loss + ce_losses[k]
                     if k == 'final':
                         loss = loss + ce_losses[k]
                     else:
-                        loss = loss + lambda2*ce_losses[k]
+                        loss = loss + ce_losses[k]
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -424,7 +408,7 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
             log(f'\t{k} acc: {acc_e[k]}\t {k} mAP: {mAP_e[k]}\t {k} f1: {f1_e[k]}')
             log(f'\t{k} recall: {rec_e[k]}')
             log(f'\t{k} precision: {prec_e[k]}')
-    if lambda_contrast > 0:
+    if lambda2 > 0:
         log('\tsimi mat statistics')
         for k in simi_mat_statis:
             log(f'\t {k} min: '+\

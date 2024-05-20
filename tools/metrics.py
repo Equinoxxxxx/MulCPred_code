@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import sys
 sys.path.append("..")
-from utils import idx2onehot
+from tools.utils import idx2onehot
 
 
 def calc_acc(preds, labels):

@@ -1,25 +1,14 @@
-from turtle import update
 import torch
-import numpy as np
-import matplotlib.pyplot as plt
-import cv2
 import os
-import copy
 import time
-import scipy
 import argparse
 import pickle
 
-from tqdm import tqdm
-from torchvision.transforms import functional as tvf
-
-from _SLE_explain import SLE_explaine
+from explain import rank_samples
 from tools.datasets.PIE_JAAD import PIEDataset
 from tools.datasets.TITAN import TITAN_dataset
-from log import create_logger
-from helpers import makedir
-from utils import ped_id_int2str, seg_context_batch3d, visualize_featmap3d_simple, draw_traj_on_img, draw_boxes_on_img, ltrb2xywh, vid_id_int2str, img_nm_int2str, write_info_txt
-from tools.data._img_mean_std import img_mean_std
+from tools.log import create_logger
+from tools.utils import makedir
 from tools.plot import vis_weight_single_cls
 
 
@@ -313,7 +302,7 @@ def main():
     model_parallel = torch.nn.DataParallel(model)
     model_parallel.eval()
 
-    SLE_explaine(model=model_parallel,
+    rank_samples(model=model_parallel,
                 dataloader=explain_loader,
                 device=device,
                 use_img=use_img,

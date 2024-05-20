@@ -302,13 +302,13 @@ class TITAN_dataset(Dataset):
         self.extra_data_root = os.path.join(dataset_root, 'TITAN/TITAN_extra')
         self.cropped_img_root = os.path.join(self.extra_data_root,
                                              'cropped_images', 
-                                             self.resize_mode, 
+                                             self.img_mode, 
                                              str(img_size[1])+'w_by_'\
                                                 +str(img_size[0])+'h')
-        if self.ctx_format == 'ped_graph':
+        if self.ctx_mode == 'ped_graph':
             ctx_format_dir = 'ori_local'
         else:
-            ctx_format_dir = self.ctx_format
+            ctx_format_dir = self.ctx_mode
         self.ctx_root = os.path.join(self.extra_data_root, 
                                      'context', 
                                      ctx_format_dir, 

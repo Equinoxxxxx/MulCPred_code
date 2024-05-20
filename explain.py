@@ -1,22 +1,17 @@
-from turtle import update
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2
 import os
 import copy
-import time
-import scipy
 from tqdm import tqdm
 from torchvision.transforms import functional as tvf
 
-from helpers import makedir
-from utils import ped_id_int2str, seg_context_batch3d, visualize_featmap3d_simple, draw_traj_on_img, draw_boxes_on_img, ltrb2xywh, vid_id_int2str, img_nm_int2str, write_info_txt
+from tools.utils import makedir, ped_id_int2str, visualize_featmap3d_simple, \
+    draw_boxes_on_img, vid_id_int2str, img_nm_int2str, write_info_txt
 from tools.data._img_mean_std import img_mean_std
-from tools.plot import vis_ego_sample
-from tools.plot import EGO_RANGE
+from tools.plot import vis_ego_sample, EGO_RANGE
 
-def SLE_explaine(model,
+def rank_samples(model,
                  dataloader,
                  device,
                  use_img,
@@ -106,13 +101,6 @@ def SLE_explaine(model,
         inputs['hflip_flag'] = data['hflip_flag'].to(device)
 
         batch_start_idx = i * batch_size
-        # dataloader.dataset.color_order = dataloader.dataset.color_order
-        # dataloader.dataset.img_norm_mode = dataloader.dataset.img_norm_mode
-
-        # cls_to_batch_idx = {key: [] for key in range(model.module.num_classes)}
-        # for img_index, img_y in enumerate(target):
-        #     img_label = img_y.item()
-        #     cls_to_batch_idx[img_label].append(img_index)
 
         with torch.no_grad():
             if use_traj:
@@ -127,7 +115,7 @@ def SLE_explaine(model,
                     traj_ori_feats = model.module.traj_model.proto_backbone(inputs['traj'])
                     traj_simi, _, _, traj_protos = model.module.traj_model(inputs['traj'])
                 traj_modal_dir = os.path.join(proto_epoch_dir, 'traj')
-                explain_batch_modality(model=model.module.traj_model,
+                rank_batch(model=model.module.traj_model,
                                        inputs=inputs,
                                        ori_feats=traj_ori_feats,
                                        simis=traj_simi,
@@ -158,7 +146,7 @@ def SLE_explaine(model,
                     ego_ori_feats = model.module.ego_model.proto_backbone(inputs['ego'])
                     ego_simi, _, _, ego_protos = model.module.ego_model(inputs['ego'])
                 ego_modal_dir = os.path.join(proto_epoch_dir, 'ego')
-                explain_batch_modality(model=model.module.ego_model,
+                rank_batch(model=model.module.ego_model,
                                         inputs=inputs,
                                        ori_feats=ego_ori_feats,
                                        simis=ego_simi,
@@ -199,7 +187,7 @@ def SLE_explaine(model,
                     img_ori_feats = model.module.img_model.proto_backbone(inputs['img'])
                     img_simi, _, _, img_protos = model.module.img_model(inputs['img'])  # B num_p
                 img_modal_dir = os.path.join(proto_epoch_dir, 'img')
-                explain_batch_modality(model=model.module.img_model,
+                rank_batch(model=model.module.img_model,
                                        inputs=inputs,
                                        ori_feats=img_ori_feats,
                                        simis=img_simi,
@@ -230,7 +218,7 @@ def SLE_explaine(model,
                     sk_ori_feats = model.module.sk_model.proto_backbone(inputs['skeleton'])
                     sk_simi, _, _, sk_protos = model.module.sk_model(inputs['skeleton'])
                 sk_modal_dir = os.path.join(proto_epoch_dir, 'skeleton')
-                explain_batch_modality(model=model.module.sk_model,
+                rank_batch(model=model.module.sk_model,
                                        inputs=inputs,
                                        ori_feats=sk_ori_feats,
                                        simis=sk_simi,
@@ -265,7 +253,7 @@ def SLE_explaine(model,
                             ctx_ori_feats = model.module.ctx_model[i].proto_backbone(cur_input)
                         ctx_simi, _, _, ctx_protos = model.module.ctx_model[i](cur_input, extra_prior=extra_prior)
                         ctx_modal_dir = os.path.join(proto_epoch_dir, 'context', str(i)+'th_class')
-                        explain_batch_modality(model=model.module.ctx_model,
+                        rank_batch(model=model.module.ctx_model,
                                                inputs=inputs,
                                         ori_feats=ctx_ori_feats,
                                         simis=ctx_simi,
@@ -297,7 +285,7 @@ def SLE_explaine(model,
                         ctx_ori_feats = model.module.ctx_model.proto_backbone(inputs['context'])
                         ctx_simi, _, _, ctx_protos = model.module.ctx_model(inputs['context'], extra_prior=extra_prior)
                     ctx_modal_dir = os.path.join(proto_epoch_dir, 'context')
-                    explain_batch_modality(model=model.module.ctx_model,
+                    rank_batch(model=model.module.ctx_model,
                                            inputs=inputs,
                                         ori_feats=ctx_ori_feats,
                                         simis=ctx_simi,
@@ -319,7 +307,7 @@ def SLE_explaine(model,
                                         )
 
 
-def explain_batch_modality(model,
+def rank_batch(model,
                             inputs,
                            ori_feats,
                            simis,

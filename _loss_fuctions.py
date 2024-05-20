@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import idx2onehot
+from tools.utils import idx2onehot
 import math
 
 class CCE(nn.Module):
