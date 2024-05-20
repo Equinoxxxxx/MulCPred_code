@@ -54,9 +54,11 @@ python main.py --dataset_name TITAN --use_atomic 1 --use_cross 0
 # PIE
 python main.py --dataset_name PIE
 ```
+After training, the check point file and the training args file will be saved under ```../work_dir/models_1/SLE/[exp_id]/```, which will also be given in the training log.
 
 ## Customize concepts
 
+You can customize the kept concepts by specify the indices of concepts.
 ```
 # indices split by space, default for all concepts kept
 python test_custom_mask.py --ckpt_path /path/to/ckpt --args_path /path/to/train args --concept_indices 0 1 2 ...
