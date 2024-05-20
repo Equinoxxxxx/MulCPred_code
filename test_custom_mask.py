@@ -68,7 +68,8 @@ def main():
     parser.add_argument('--cross_dataset_exp', type=int, default=0)
     parser.add_argument('--dataset_name', type=str, default='TITAN')
     parser.add_argument('--split', type=str, default='test')
-    INDICES_TO_KEEP = []
+    parser.add_argument('--concept_indices', type=int, nargs='*')
+    
     # data
     # parser.add_argument('--dataset_name', type=str, default='TITAN')
 
@@ -78,6 +79,9 @@ def main():
     exp_type = test_args.exp_type
     cross_dataset_exp = test_args.cross_dataset_exp
     split = test_args.split
+    indices_to_keep = args.concept_indices
+    if indices_to_keep is None:
+        indices_to_keep = []
 
     with open(args_path, 'rb') as f:
         args = pickle.load(f)
@@ -370,10 +374,10 @@ def main():
             else:
                 weight = model.module.atomic_layer.weight
                 ori_weight = copy.deepcopy(model.module.atomic_layer.weight)
-            if len(INDICES_TO_KEEP) == 0:
-                INDICES_TO_KEEP = list(range(ori_weight.size(1)))
+            if len(indices_to_keep) == 0:
+                indices_to_keep = list(range(ori_weight.size(1)))
             for i in range(weight.size(1)):
-                if i not in INDICES_TO_KEEP:
+                if i not in indices_to_keep:
                     weight[:, i] = 0 * weight[:, i]
             if use_cross:
                 model.module.last_layer.weight = weight
@@ -463,7 +467,7 @@ def main():
                     },
                 })
         concept_to_sample = {}
-        for p in INDICES_TO_KEEP:
+        for p in indices_to_keep:
             concept_to_sample[p] = []
             for _ in range(max_n_sample):
                 concept_to_sample[p].append({
@@ -734,7 +738,7 @@ def main():
                                 break
                     
                 # sort activation scores
-                for p in INDICES_TO_KEEP:
+                for p in indices_to_keep:
                     max_idx = torch.argmax(scores[:, p])
                     for i in range(max_n_sample):
                         if concept_to_sample[p][i]['activation_score'] is None \
@@ -849,7 +853,7 @@ def main():
     else:
         raise ValueError(exp_type)
     log(f'Test dir: {test_dir}')
-    log(f'Concept indices: {INDICES_TO_KEEP}')
+    log(f'Concept indices: {indices_to_keep}')
 
 
 def visualize_samples(model,
