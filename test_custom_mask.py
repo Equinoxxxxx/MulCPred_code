@@ -63,12 +63,11 @@ def main():
     parser.add_argument('--exp_type', type=str, 
                         default='custom_mask',
                         help='custom_mask or select_sample or morf')
-    parser.add_argument('--exp_type', type=int,
-                        help='concept indeces to keep, split by space')
     parser.add_argument('--cross_dataset_exp', type=int, default=0)
     parser.add_argument('--dataset_name', type=str, default='TITAN')
     parser.add_argument('--split', type=str, default='test')
-    parser.add_argument('--concept_indices', type=int, nargs='*')
+    parser.add_argument('--concept_indices', type=int, nargs='*',
+                        help='concept indeces to keep, split by space')
     
     # data
     # parser.add_argument('--dataset_name', type=str, default='TITAN')
