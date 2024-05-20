@@ -56,4 +56,8 @@ python main.py --dataset_name PIE
 ```
 
 ## Customize concepts
-TBD
+
+```
+# indices split by space, default for all concepts kept
+python test_custom_mask.py --ckpt_path /path/to/ckpt --args_path /path/to/train args --concept_indices 0 1 2 ...
+```
