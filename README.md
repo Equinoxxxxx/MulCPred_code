@@ -5,9 +5,9 @@
 Customize the directories for datasets (```dataset_root```) and weight files (```ckpt_root```) in config.py.
 
 ## Prepare the datasets
-Download the datasets ([PIE](https://github.com/aras62/PIEPredict?tab=readme-ov-file#PIE_dataset),[TITAN](https://usa.honda-ri.com/titan)
+Download the datasets ([PIE](https://github.com/aras62/PIEPredict?tab=readme-ov-file#PIE_dataset),[TITAN](https://usa.honda-ri.com/titan))
 
-Extract the data in the following format:
+Extract the data in the following structure:
 ```
 [dataset_root]/
     PIE_dataset/
