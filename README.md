@@ -37,18 +37,21 @@ python -m tools.data.preprocess
 ```
 
 ## Train
-# TITAN-crossing
+
 ```
+# TITAN-crossing
 python main.py --dataset_name TITAN
 ```
 
-# TITAN-atomic
+
 ```
+# TITAN-atomic
 python main.py --dataset_name TITAN --use_atomic 1 --use_cross 0
 ```
 
-# PIE
+
 ```
+# PIE
 python main.py --dataset_name PIE
 ```
 
