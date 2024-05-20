@@ -151,7 +151,7 @@ def main():
     
     # test only setting
     parser.add_argument('--test_only', type=int, default=0)
-    parser.add_argument('--model_path', type=str, default='../work_dirs/models/multi_img/27Feb2022-20h48m16s/78nopush0.8241.pth')
+    parser.add_argument('--model_path', type=str, default='')
     parser.add_argument('--config_path', type=str, default=None)
 
     args = parser.parse_args()
