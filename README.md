@@ -1,1 +1,1 @@
-# MulCPred_code
+# Pytorch implementation for MulCPred
