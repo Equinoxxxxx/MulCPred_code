@@ -105,7 +105,7 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
     # start iteration
     b_end = time.time()
     tbar = tqdm(dataloader, miniters=1)
-    for iter, data in enumerate(tbar):
+    for n_iter, data in enumerate(tbar):
         # update trainable weights
         if loss_weight == 'trainable' and i > 0:
             if use_cross:
@@ -173,7 +173,7 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
             # print(logits.keys())
             # collect targets and logits in batch
             for k in logits:
-                if iter == 0:
+                if n_iter == 0:
                     targets_e[k] = targets[k].detach()
                     logits_e[k] = logits[k].detach()
                 else:
@@ -352,6 +352,8 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
         if is_train:
             del loss
         torch.cuda.empty_cache()
+        if n_iter%50 == 0:
+            print(f'cur mem allocated: {torch.cuda.memory_allocated(device)}')
         # gpu_tracker.track()
     tbar.close()
     end = time.time()
@@ -384,9 +386,9 @@ def train_test2(model, dataloader, optimizer=None, model_name='SLE',
     
     # return res
     res = {}
-    res['loss'] = {'balance': total_balance / (iter + 1),
-                   'orth': total_orth / (iter + 1),
-                   'contrast': total_contrast / (iter + 1)}
+    res['loss'] = {'balance': total_balance / (n_iter + 1),
+                   'orth': total_orth / (n_iter + 1),
+                   'contrast': total_contrast / (n_iter + 1)}
 
     for k in logits_e:
         if k == 'final':

@@ -12,7 +12,7 @@ from copy import deepcopy
 
 import models.R3D as R3D
 import models.I3D as I3D
-from ._mmbackbones2 import create_mm_backbones
+from models._mmbackbones2 import create_mm_backbones
 from config import ckpt_root
 
 BACKBONE_TO_OUTDIM = {

@@ -746,7 +746,7 @@ class SLEseq(nn.Module):  # sample level explain
             feat = self.backbone(x) # B C
             # print(self.simi_func)
             if self.proto_activate == 'norm':
-                self.proto_vec = nn.Parameter(F.normalize(self.proto_vec, dim=1), requires_grad=True)
+                self.proto_vec = nn.Parameter(F.normalize(self.proto_vec, dim=1), requires_grad=True)  # update every time
             scores = F.relu(F.linear(feat, weight=self.proto_vec))
             
             return scores
